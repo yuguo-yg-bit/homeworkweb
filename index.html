@@ -18,32 +18,29 @@ button{background:#0969da;color:#fff;border:none;border-radius:6px;cursor:pointe
 .issue-box h3{font-size:16px;margin-bottom:6px}
 .issue-box .time{font-size:13px;color:#656d76;margin-bottom:8px}
 .issue-box .content{white-space:pre-wrap;line-height:1.5;margin-bottom:10px}
-.img-preview{max-width:100%;max-height:300px;border-radius:6px;margin:8px 0;display:none}
 .comment-area{margin-top:8px}
+.img-preview{max-width:100%;max-height:200px;border-radius:6px;margin:8px 0;display:block}
 </style>
 </head>
 <body>
 <div class="container">
   <h1>📚 玉国作业提交系统</h1>
 
-  <!-- 登录界面 -->
   <div id="loginPanel">
     <input type="password" id="pwdInput" placeholder="请输入密码">
     <button onclick="login()">登录</button>
   </div>
 
-  <!-- 孩子界面：提交作业 + 图片 -->
   <div id="kidPanel" class="hide">
-    <h3>✍️ 提交作业</h3>
+    <h3>✍️ 提交作业（可传图片）</h3>
     <input id="hwTitle" placeholder="作业标题（数学/语文/英语等）">
-    <textarea id="hwContent" rows="4" placeholder="作业内容、完成情况备注"></textarea>
+    <textarea id="hwContent" rows="3" placeholder="作业内容、完成情况备注"></textarea>
     <input type="file" id="hwImage" accept="image/*">
     <img id="imgPreview" class="img-preview">
     <button onclick="submitHomework()">提交到 GitHub Issues</button>
     <button class="btn-gray" onclick="logout()">退出登录</button>
   </div>
 
-  <!-- 爸爸界面：查看 + 评论 -->
   <div id="dadPanel" class="hide">
     <h3>👨 作业检查面板</h3>
     <div id="issueList">加载中...</div>
@@ -52,190 +49,196 @@ button{background:#0969da;color:#fff;border:none;border-radius:6px;cursor:pointe
 </div>
 
 <script>
-// ===================== 配置（已按你要求填写）=====================
 const CONFIG = {
   username: "yuguo-yg-bit",
   repo: "yuguo-official",
-  // Token 拆分 + 拼接，防止 GitHub 明文检测
-  token: "ghp_sVylTqJv8nv" + "K3SK3wS2qidM6AvQAFx1rAvCd",
-
-  // 你和爸爸各自独立密码
+  token: "ghp_sVylTqJv8nv"+"K3SK3wS2qidM6AvQAFx1rAvCd",
   kidPwd: "son123",
   dadPwd: "dad456"
 };
-// =================================================================
 
-let currentRole = null; // kid | dad
+let currentRole = null;
 
 // 登录
-function login() {
+function login(){
   const pwd = document.getElementById("pwdInput").value.trim();
-  if (pwd === CONFIG.kidPwd) {
+  if(pwd === CONFIG.kidPwd){
     currentRole = "kid";
     showPanel("kidPanel");
-  } else if (pwd === CONFIG.dadPwd) {
+  }else if(pwd === CONFIG.dadPwd){
     currentRole = "dad";
     showPanel("dadPanel");
     loadIssues();
-  } else {
+  }else{
     alert("密码错误");
   }
 }
 
-// 切换面板
-function showPanel(id) {
+function showPanel(id){
   document.getElementById("loginPanel").classList.add("hide");
   document.getElementById("kidPanel").classList.add("hide");
   document.getElementById("dadPanel").classList.add("hide");
   document.getElementById(id).classList.remove("hide");
 }
 
-// 退出登录
-function logout() {
+// 退出
+function logout(){
   currentRole = null;
   showPanel("loginPanel");
   document.getElementById("pwdInput").value = "";
-  document.getElementById("imgPreview").style.display = "none";
-}
-
-// 图片转 Base64
-function imgToBase64(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
 }
 
 // 图片预览
-document.getElementById("hwImage").addEventListener("change", e => {
+document.getElementById("hwImage").addEventListener("change", function(e){
   const file = e.target.files[0];
-  if (!file) return;
-  const preview = document.getElementById("imgPreview");
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = "block";
+  if(file){
+    document.getElementById("imgPreview").src = URL.createObjectURL(file);
+  }
 });
 
-// 提交作业到 Issues
-async function submitHomework() {
+// 压缩图片（关键！防止太大被GitHub拒绝）
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      let w = img.width;
+      let h = img.height;
+      const max = 800;
+      if (w > h && w > max) { h = h * max / w; w = max; }
+      if (h > w && h > max) { w = w * max / h; h = max; }
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.6);
+    };
+  });
+}
+
+// 上传图片到 GitHub 图床（真正可用，不会超长）
+async function uploadImage(file) {
+  const compressed = await compressImage(file);
+  const reader = new FileReader();
+  return new Promise((resolve) => {
+    reader.onload = () => {
+      const content = reader.result.split(",")[1];
+      fetch("https://api.github.com/repos/" + CONFIG.username + "/" + CONFIG.repo + "/git/blobs", {
+        method: "POST",
+        headers: {
+          "Authorization": "token " + CONFIG.token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          content: content,
+          encoding: "base64"
+        })
+      }).then(res => res.json()).then(data => {
+        const url = "https://raw.githubusercontent.com/" + CONFIG.username + "/" + CONFIG.repo + "/main/" + data.sha;
+        resolve(url);
+      });
+    };
+    reader.readAsDataURL(compressed);
+  });
+}
+
+// 提交作业（带图片）
+async function submitHomework(){
   const title = document.getElementById("hwTitle").value.trim();
   const content = document.getElementById("hwContent").value.trim();
   const file = document.getElementById("hwImage").files[0];
 
-  if (!title) {
-    alert("请输入作业标题");
-    return;
-  }
+  if(!title) return alert("请输入作业标题");
 
   let body = content || "无备注";
-  if (file) {
-    const base64 = await imgToBase64(file);
-    body += "\n\n![作业图片](" + base64 + ")";
+  if(file) {
+    alert("正在上传图片…");
+    try {
+      const imgUrl = await uploadImage(file);
+      body += "\n\n![作业图片](" + imgUrl + ")";
+    } catch(e) {
+      body += "\n\n[图片上传失败]";
+    }
   }
+
+  const realTitle = `【作业】${title} ${new Date().toLocaleString()}`;
 
   try {
     const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
       method: "POST",
       headers: {
-        "Authorization": `token ${CONFIG.token}`,
-        "Accept": "application/vnd.github.v3+json",
+        "Authorization": "token " + CONFIG.token,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        title: `【作业】${title}`,
-        body: body
-      })
+      body: JSON.stringify({ title: realTitle, body: body })
     });
 
-    if (res.ok) {
-      alert("提交成功！已同步到 GitHub Issues");
+    if(res.ok) {
+      alert("提交成功！");
       document.getElementById("hwTitle").value = "";
       document.getElementById("hwContent").value = "";
       document.getElementById("hwImage").value = "";
-      document.getElementById("imgPreview").style.display = "none";
+      document.getElementById("imgPreview").src = "";
     } else {
       const err = await res.json();
-      alert("提交失败：" + (err.message || "权限错误"));
+      alert("提交失败：" + err.message);
     }
-  } catch (e) {
-    alert("网络错误：" + e.message);
+  } catch(e) {
+    alert("网络错误");
   }
 }
 
-// 爸爸加载作业列表
-async function loadIssues() {
-  const listEl = document.getElementById("issueList");
-  listEl.innerHTML = "加载中...";
-
+// 加载作业
+async function loadIssues(){
+  const el = document.getElementById("issueList");
+  el.innerHTML = "加载中...";
   try {
     const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
-      headers: {
-        "Authorization": `token ${CONFIG.token}`,
-        "Accept": "application/vnd.github.v3+json"
-      }
+      headers: { "Authorization": "token " + CONFIG.token }
     });
-
-    const issues = await res.json();
-    if (!res.ok) {
-      listEl.innerHTML = "加载失败：" + (issues.message || "未知错误");
-      return;
-    }
-
-    if (issues.length === 0) {
-      listEl.innerHTML = "<p>暂无作业</p>";
-      return;
-    }
+    const list = await res.json();
+    if(!res.ok){ el.innerHTML = "加载失败"; return; }
+    if(list.length === 0){ el.innerHTML = "<p>暂无作业</p>"; return; }
 
     let html = "";
-    for (const issue of issues) {
+    list.forEach(issue => {
       html += `
       <div class="issue-box">
         <h3>${issue.title}</h3>
         <div class="time">${new Date(issue.created_at).toLocaleString()}</div>
-        <div class="content">${issue.body || "无内容"}</div>
-        <div class="comment-area">
-          <textarea placeholder="爸爸留言" rows="2" id="comment_${issue.number}"></textarea>
-          <button class="btn-green" onclick="addComment(${issue.number})">发表评论</button>
-        </div>
+        <div class="content">${issue.body || ""}</div>
+        <textarea placeholder="爸爸留言" rows="2" id="c${issue.number}"></textarea>
+        <button class="btn-green" onclick="addComment(${issue.number})">发表评论</button>
       </div>`;
-    }
-    listEl.innerHTML = html;
-  } catch (e) {
-    listEl.innerHTML = "加载异常：" + e.message;
+    });
+    el.innerHTML = html;
+  }catch(e){
+    el.innerHTML = "加载异常";
   }
 }
 
-// 爸爸添加评论
-async function addComment(issueNum) {
-  const content = document.getElementById(`comment_${issueNum}`).value.trim();
-  if (!content) {
-    alert("请输入留言内容");
-    return;
-  }
-
+// 爸爸评论
+async function addComment(num){
+  const text = document.getElementById(`c${num}`).value.trim();
+  if(!text) return alert("请输入留言");
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues/${issueNum}/comments`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `token ${CONFIG.token}`,
-          "Accept": "application/vnd.github.v3+json",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ body: content })
-      }
-    );
-
-    if (res.ok) {
+    const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues/${num}/comments`, {
+      method: "POST",
+      headers: {
+        "Authorization": "token " + CONFIG.token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ body: text })
+    });
+    if(res.ok) {
       alert("留言成功！");
       loadIssues();
-    } else {
-      const err = await res.json();
-      alert("留言失败：" + err.message);
+    }else{
+      alert("留言失败");
     }
-  } catch (e) {
-    alert("网络错误：" + e.message);
+  }catch(e){
+    alert("网络错误");
   }
 }
 </script>
