@@ -53,19 +53,21 @@ const CONFIG = {
   username: "yuguo-yg-bit",
   repo: "yuguo-official",
   token: "ghp_sVylTqJv8nv"+"K3SK3wS2qidM6AvQAFx1rAvCd",
-  kidPwd: "son123",
-  dadPwd: "dad456"
+  // 固定正确密码
+  kidPwd: "123456",
+  dadPwd: "dad888"
 };
 
 let currentRole = null;
 
-// 登录
+// 登录修复版
 function login(){
   const pwd = document.getElementById("pwdInput").value.trim();
-  if(pwd === CONFIG.kidPwd){
+  // 严格对比
+  if(pwd === "123456"){
     currentRole = "kid";
     showPanel("kidPanel");
-  }else if(pwd === CONFIG.dadPwd){
+  }else if(pwd === "dad888"){
     currentRole = "dad";
     showPanel("dadPanel");
     loadIssues();
@@ -81,7 +83,6 @@ function showPanel(id){
   document.getElementById(id).classList.remove("hide");
 }
 
-// 退出
 function logout(){
   currentRole = null;
   showPanel("loginPanel");
@@ -96,7 +97,7 @@ document.getElementById("hwImage").addEventListener("change", function(e){
   }
 });
 
-// 压缩图片（关键！防止太大被GitHub拒绝）
+// 压缩图片
 function compressImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -117,7 +118,7 @@ function compressImage(file) {
   });
 }
 
-// 上传图片到 GitHub 图床（真正可用，不会超长）
+// 上传图片
 async function uploadImage(file) {
   const compressed = await compressImage(file);
   const reader = new FileReader();
@@ -143,7 +144,7 @@ async function uploadImage(file) {
   });
 }
 
-// 提交作业（带图片）
+// 提交作业
 async function submitHomework(){
   const title = document.getElementById("hwTitle").value.trim();
   const content = document.getElementById("hwContent").value.trim();
@@ -218,7 +219,7 @@ async function loadIssues(){
   }
 }
 
-// 爸爸评论
+// 评论
 async function addComment(num){
   const text = document.getElementById(`c${num}`).value.trim();
   if(!text) return alert("请输入留言");
