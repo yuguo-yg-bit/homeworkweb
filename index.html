@@ -15,331 +15,209 @@ button{background:#0969da;color:#fff;border:none;border-radius:6px;cursor:pointe
 .btn-gray{background:#6e7681}
 .hide{display:none}
 
-/* 进度条样式 */
 .progress-bar{width:100%;height:8px;background:#eee;border-radius:4px;margin:10px 0;overflow:hidden;}
-.progress-fill{height:100%;background:#0969da;width:0%;transition: width 0.1s linear;}
-.progress-text{text-align:center;font-size:14px;color:#333;margin-bottom:10px;}
+.progress-fill{height:100%;background:#0969da;width:0%;transition: width 0.1s}
+.progress-text{text-align:center;font-size:14px;margin-bottom:10px;}
 
 .issue-box{background:#f6f8fa;padding:16px;border-radius:6px;margin-bottom:12px;border-left:3px solid #0969da}
 .issue-box h3{font-size:16px;margin-bottom:6px}
 .issue-box .time{font-size:13px;color:#656d76;margin-bottom:8px}
-.issue-box .content{white-space:pre-wrap;line-height:1.5;margin-bottom:10px}
-.issue-box img{max-width:100%;border-radius:6px;margin:8px 0;display:block}
-.comment-area{margin-top:8px}
-.img-preview{max-width:100%;max-height:200px;border-radius:6px;margin:8px 0;display:block}
+.issue-box .content{white-space:pre-wrap;line-height:1.5}
+.issue-box img{max-width:100%;border-radius:6px;margin:8px 0}
+.comment-area{margin-top:10px}
+.img-preview{max-width:100%;max-height:200px;border-radius:6px;margin:8px 0}
 </style>
 </head>
 <body>
 <div class="container">
   <h1>📚 作业提交系统</h1>
 
-  <!-- 登录面板 -->
   <div id="loginPanel">
     <input type="password" id="pwdInput" placeholder="请输入密码">
     <button onclick="login()">登录</button>
   </div>
 
-  <!-- 孩子提交作业面板 -->
   <div id="kidPanel" class="hide">
     <h3>✍️ 提交作业</h3>
-    <input id="hwTitle" placeholder="作业标题（数学/语文/英语等）">
-    <textarea id="hwContent" rows="3" placeholder="作业内容、完成情况备注"></textarea>
+    <input id="hwTitle" placeholder="作业标题">
+    <textarea id="hwContent" rows="3" placeholder="作业备注"></textarea>
     <input type="file" id="hwImage" accept="image/*">
     <img id="imgPreview" class="img-preview">
 
-    <!-- 进度条区域 -->
     <div class="progress-text hide" id="progressText">0%</div>
     <div class="progress-bar hide" id="progressBar">
       <div class="progress-fill" id="progressFill"></div>
     </div>
 
     <button onclick="submitHomework()">提交到 GitHub</button>
-    <button class="btn-gray" onclick="logout()">退出登录</button>
+    <button class="btn-gray" onclick="logout()">退出</button>
   </div>
 
-  <!-- 爸爸检查作业面板 -->
   <div id="dadPanel" class="hide">
     <h3>👨 作业检查面板</h3>
     <div id="issueList">加载中...</div>
-    <button class="btn-gray" onclick="logout()">退出登录</button>
+    <button class="btn-gray" onclick="logout()">退出</button>
   </div>
 </div>
 
 <script>
-// 固定配置，无需修改
 const CONFIG = {
   username: "yuguo-yg-bit",
   repo: "homeworkweb",
-  // Token保持拼接，防止GitHub检测
   token: "ghp_sVylTqJv8nv"+"K3SK3wS2qidM6AvQAFx1rAvCd"
 };
 
-// 固定密码
-const KID_PWD = "123456";
-const DAD_PWD = "dad888";
-
-// ========== 进度条控制 ==========
-function showProgress(show) {
+function showProgress(show){
   const bar = document.getElementById("progressBar");
   const text = document.getElementById("progressText");
-  if (show) {
-    bar.classList.remove("hide");
-    text.classList.remove("hide");
-  } else {
-    bar.classList.add("hide");
-    text.classList.add("hide");
-    setProgress(0);
-  }
+  show ? (bar.classList.remove("hide"), text.classList.remove("hide"))
+      : (bar.classList.add("hide"), text.classList.add("hide"), setProgress(0));
 }
 
-function setProgress(percent) {
-  const fill = document.getElementById("progressFill");
-  const text = document.getElementById("progressText");
-  fill.style.width = percent + "%";
-  text.innerText = Math.round(percent) + "%";
+function setProgress(p){
+  document.getElementById("progressFill").style.width = p+"%";
+  document.getElementById("progressText").innerText = Math.round(p)+"%";
 }
 
-// ========== 登录逻辑 ==========
-function login() {
-  const inputPwd = document.getElementById("pwdInput").value.trim();
-  if (inputPwd === KID_PWD) {
+function login(){
+  const p = document.getElementById("pwdInput").value.trim();
+  if(p === "123456"){
     showPanel("kidPanel");
-  } else if (inputPwd === DAD_PWD) {
+  }else if(p === "dad888"){
     showPanel("dadPanel");
     loadIssues();
-  } else {
+  }else{
     alert("密码错误");
   }
 }
 
-function showPanel(panelId) {
-  // 隐藏所有面板
+function showPanel(id){
   document.getElementById("loginPanel").classList.add("hide");
   document.getElementById("kidPanel").classList.add("hide");
   document.getElementById("dadPanel").classList.add("hide");
-  // 显示目标面板
-  document.getElementById(panelId).classList.remove("hide");
+  document.getElementById(id).classList.remove("hide");
 }
 
-function logout() {
+function logout(){
   showPanel("loginPanel");
   document.getElementById("pwdInput").value = "";
-  // 清空预览
-  document.getElementById("imgPreview").src = "";
-  document.getElementById("hwImage").value = "";
 }
 
-// ========== 图片预览 ==========
-document.getElementById("hwImage").addEventListener("change", function(e) {
-  const file = e.target.files[0];
-  if (file) {
-    document.getElementById("imgPreview").src = URL.createObjectURL(file);
-  }
+document.getElementById("hwImage").addEventListener("change", function(e){
+  const f = e.target.files[0];
+  if(f) document.getElementById("imgPreview").src = URL.createObjectURL(f);
 });
 
-// ========== 图片压缩（防止过大） ==========
-function compressImage(file) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = function() {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      let width = img.width;
-      let height = img.height;
-      const maxSize = 800; // 最大边长800px，保证清晰且体积小
-      
-      // 等比压缩
-      if (width > height && width > maxSize) {
-        height = height * maxSize / width;
-        width = maxSize;
-      } else if (height > width && height > maxSize) {
-        width = width * maxSize / height;
-        height = maxSize;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(img, 0, 0, width, height);
-      // 转成jpeg，质量0.6，体积大幅缩小
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.6);
-    };
-  });
-}
-
-// ========== 图片上传（国内稳定图床） ==========
-async function uploadImage(file) {
-  const compressedBlob = await compressImage(file);
+async function uploadToSMMS(file) {
   const formData = new FormData();
-  formData.append("smfile", compressedBlob, "homework.jpg");
-  formData.append("format", "json");
+  formData.append("smfile", file);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://sm.ms/api/v2/upload");
+    xhr.open("POST", "https://smms.app/api/v2/upload", true);
 
-    // 实时上传进度
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const percent = (e.loaded / e.total) * 100;
-        setProgress(percent);
-      }
+    xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) setProgress((e.loaded / e.total) * 100);
     };
 
     xhr.onload = function() {
       showProgress(false);
       if (xhr.status === 200) {
         const res = JSON.parse(xhr.responseText);
-        if (res.success) {
-          resolve(res.data.url); // 返回可直接访问的图片链接
-        } else {
-          reject(res.message || "上传失败");
-        }
-      } else {
-        reject("网络错误，上传失败");
-      }
+        if (res.success) resolve(res.data.url);
+        else reject(res.message);
+      } else reject("上传失败");
     };
 
     xhr.onerror = function() {
       showProgress(false);
-      reject("网络异常");
+      reject("网络错误");
     };
 
     xhr.send(formData);
   });
 }
 
-// ========== 提交作业 ==========
-async function submitHomework() {
+async function submitHomework(){
   const title = document.getElementById("hwTitle").value.trim();
   const content = document.getElementById("hwContent").value.trim();
-  const imageFile = document.getElementById("hwImage").files[0];
+  const file = document.getElementById("hwImage").files[0];
 
-  if (!title) {
-    alert("请输入作业标题");
-    return;
-  }
+  if(!title) return alert("请输入作业标题");
 
-  // 拼接作业内容
-  let issueBody = content || "无备注";
+  let body = content || "无备注";
 
-  // 有图片则先上传
-  if (imageFile) {
+  if(file) {
     showProgress(true);
     try {
-      const imageUrl = await uploadImage(imageFile);
-      // Markdown格式，GitHub会自动渲染成图片
-      issueBody += `\n\n![作业图片](${imageUrl})`;
-    } catch (err) {
-      alert(`图片上传失败：${err}`);
+      const url = await uploadToSMMS(file);
+      body += "\n\n![作业](" + url + ")";
+    } catch(e) {
+      body += "\n\n[图片上传失败]";
       showProgress(false);
-      return;
     }
   }
 
-  // 提交到GitHub Issues
-  try {
-    const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
-      method: "POST",
-      headers: {
-        "Authorization": `token ${CONFIG.token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        title: `【作业】${title} - ${new Date().toLocaleString()}`,
-        body: issueBody
-      })
-    });
+  const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
+    method: "POST",
+    headers: {
+      "Authorization": `token ${CONFIG.token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      title: `【作业】${title}`,
+      body: body
+    })
+  });
 
-    if (res.ok) {
-      alert("提交成功！爸爸可以正常查看图片");
-      // 清空表单
-      document.getElementById("hwTitle").value = "";
-      document.getElementById("hwContent").value = "";
-      document.getElementById("hwImage").value = "";
-      document.getElementById("imgPreview").src = "";
-    } else {
-      const err = await res.json();
-      alert(`提交失败：${err.message || "未知错误"}`);
-    }
-  } catch (e) {
-    alert("网络错误，提交失败");
+  if(res.ok) {
+    alert("提交成功！爸爸手机可以直接看到图片！");
+    document.getElementById("hwTitle").value = "";
+    document.getElementById("hwContent").value = "";
+    document.getElementById("hwImage").value = "";
+    document.getElementById("imgPreview").src = "";
+  } else {
+    alert("提交失败");
   }
 }
 
-// ========== 加载作业列表 ==========
-async function loadIssues() {
-  const listEl = document.getElementById("issueList");
-  listEl.innerHTML = "加载中...";
+async function loadIssues(){
+  const el = document.getElementById("issueList");
+  el.innerHTML = "加载中...";
+  const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
+    headers: { "Authorization": `token ${CONFIG.token}` }
+  });
+  const list = await res.json();
+  if(!res.ok){ el.innerHTML = "加载失败"; return; }
+  if(list.length === 0){ el.innerHTML = "<p>暂无作业</p>"; return; }
 
-  try {
-    const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues`, {
-      headers: {
-        "Authorization": `token ${CONFIG.token}`
-      }
-    });
-
-    const issues = await res.json();
-    if (!res.ok) {
-      listEl.innerHTML = "加载失败，请检查网络";
-      return;
-    }
-
-    if (issues.length === 0) {
-      listEl.innerHTML = "<p>暂无作业提交</p>";
-      return;
-    }
-
-    // 渲染作业列表
-    let html = "";
-    issues.forEach(issue => {
-      html += `
-      <div class="issue-box">
-        <h3>${issue.title}</h3>
-        <div class="time">提交时间：${new Date(issue.created_at).toLocaleString()}</div>
-        <div class="content">${issue.body || ""}</div>
-        <div class="comment-area">
-          <textarea rows="2" placeholder="爸爸留言" id="comment_${issue.number}"></textarea>
-          <button class="btn-green" onclick="addComment(${issue.number})">发表评论</button>
-        </div>
-      </div>`;
-    });
-    listEl.innerHTML = html;
-
-  } catch (e) {
-    listEl.innerHTML = "加载异常，请检查网络";
-  }
+  let html = "";
+  list.forEach(issue => {
+    html += `
+    <div class="issue-box">
+      <h3>${issue.title}</h3>
+      <div class="time">${new Date(issue.created_at).toLocaleString()}</div>
+      <div class="content">${issue.body}</div>
+      <textarea rows="2" placeholder="爸爸留言" id="c${issue.number}"></textarea>
+      <button class="btn-green" onclick="addComment(${issue.number})">发表评论</button>
+    </div>`;
+  });
+  el.innerHTML = html;
 }
 
-// ========== 爸爸发表评论 ==========
-async function addComment(issueNumber) {
-  const commentContent = document.getElementById(`comment_${issueNumber}`).value.trim();
-  if (!commentContent) {
-    alert("请输入留言内容");
-    return;
-  }
-
-  try {
-    const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues/${issueNumber}/comments`, {
-      method: "POST",
-      headers: {
-        "Authorization": `token ${CONFIG.token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        body: commentContent
-      })
-    });
-
-    if (res.ok) {
-      alert("留言成功");
-      loadIssues(); // 刷新列表
-    } else {
-      alert("留言失败，请重试");
-    }
-  } catch (e) {
-    alert("网络错误，留言失败");
-  }
+async function addComment(num){
+  const t = document.getElementById(`c${num}`).value.trim();
+  if(!t) return alert("请输入留言");
+  const res = await fetch(`https://api.github.com/repos/${CONFIG.username}/${CONFIG.repo}/issues/${num}/comments`, {
+    method: "POST",
+    headers: {
+      "Authorization": `token ${CONFIG.token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ body: t })
+  });
+  if(res.ok){ alert("评论成功！"); loadIssues(); }
+  else alert("失败");
 }
 </script>
 </body>
