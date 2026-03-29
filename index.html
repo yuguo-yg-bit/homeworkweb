@@ -23,7 +23,7 @@ button{background:#0969da;color:#fff;border:none;border-radius:6px;cursor:pointe
 .issue-box h3{font-size:16px;margin-bottom:6px}
 .issue-box .time{font-size:13px;color:#656d76;margin-bottom:8px}
 .issue-box .content{white-space:pre-wrap;line-height:1.5}
-.issue-box img{max-width:100%;border-radius:6px;margin:8px 0}
+.issue-box img{max-width:100%;border-radius:6px;margin:8px 0;display:block!important}
 .comment-area{margin-top:10px}
 .img-preview{max-width:100%;max-height:200px;border-radius:6px;margin:8px 0}
 </style>
@@ -108,33 +108,12 @@ document.getElementById("hwImage").addEventListener("change", function(e){
   if(f) document.getElementById("imgPreview").src = URL.createObjectURL(f);
 });
 
-async function uploadToSMMS(file) {
-  const formData = new FormData();
-  formData.append("smfile", file);
-
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://smms.app/api/v2/upload", true);
-
-    xhr.upload.onprogress = function(e) {
-      if (e.lengthComputable) setProgress((e.loaded / e.total) * 100);
-    };
-
-    xhr.onload = function() {
-      showProgress(false);
-      if (xhr.status === 200) {
-        const res = JSON.parse(xhr.responseText);
-        if (res.success) resolve(res.data.url);
-        else reject(res.message);
-      } else reject("上传失败");
-    };
-
-    xhr.onerror = function() {
-      showProgress(false);
-      reject("网络错误");
-    };
-
-    xhr.send(formData);
+// 直接转 Base64，不再依赖任何图床
+function toBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -150,8 +129,11 @@ async function submitHomework(){
   if(file) {
     showProgress(true);
     try {
-      const url = await uploadToSMMS(file);
-      body += "\n\n![作业](" + url + ")";
+      const base64 = await toBase64(file);
+      // 直接嵌入，不经过任何外部服务器
+      body += "\n\n![作业](" + base64 + ")";
+      setProgress(100);
+      showProgress(false);
     } catch(e) {
       body += "\n\n[图片上传失败]";
       showProgress(false);
@@ -177,8 +159,13 @@ async function submitHomework(){
     document.getElementById("hwImage").value = "";
     document.getElementById("imgPreview").src = "";
   } else {
-    alert("提交失败");
+    alert("提交失败：图片可能稍大，请用小一点的图片");
   }
+}
+
+// 强制渲染图片，不再被 GitHub 过滤
+function renderImageSafe(html) {
+  return html.replace(/!\[.*?\]\((https:\/\/raw\.githubusercontent\.com.*?)\)/g, '<img src="$1" referrerpolicy="no-referrer">');
 }
 
 async function loadIssues(){
@@ -193,11 +180,14 @@ async function loadIssues(){
 
   let html = "";
   list.forEach(issue => {
+    let body = issue.body || "";
+    // 强制修复 GitHub raw 图片显示
+    body = renderImageSafe(body);
     html += `
     <div class="issue-box">
       <h3>${issue.title}</h3>
       <div class="time">${new Date(issue.created_at).toLocaleString()}</div>
-      <div class="content">${issue.body}</div>
+      <div class="content">${body}</div>
       <textarea rows="2" placeholder="爸爸留言" id="c${issue.number}"></textarea>
       <button class="btn-green" onclick="addComment(${issue.number})">发表评论</button>
     </div>`;
